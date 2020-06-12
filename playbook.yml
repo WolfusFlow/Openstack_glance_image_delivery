@@ -1,0 +1,19 @@
+---
+
+- name: startPython
+  gather_facts: false
+  hosts: test_region
+  # if we want to add as an arguments from shell request
+  vars:
+    region: region
+    image: image
+    username: username
+    password: password
+    auth_url: auth_url
+    project_name: project_name
+    project_domain_name: project_domain_name
+    user_domain_name: user_domain_name
+  tasks:
+    - name: startPython
+      shell: "sudo python ./image_upload.py"
+

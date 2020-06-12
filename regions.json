@@ -1,0 +1,24 @@
+{
+    "First_region": [
+        {
+            "region" : "test_region",
+            "username" : "username",
+            "password" : "password",
+            "auth_url" : "http://127.0.0.1:5000/v3",
+            "project_name" :"admin",
+            "project_domain_name" : "default",
+            "user_domain_name" : "Default"
+        }
+    ],
+    "Second_region":[
+        {
+            "region" : "second_test_region",
+            "username" : "your_username",
+            "password" : "your_password",
+            "auth_url" : "keystone_url",
+            "project_name" :"admin",
+            "project_domain_name" : "default",
+            "user_domain_name" : "Default" 
+        }
+    ]
+}
