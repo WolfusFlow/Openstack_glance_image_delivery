@@ -57,8 +57,11 @@ class Image_Delivery:
             project_domain_name=kwargs['project_domain_name'], 
             user_domain_name=kwargs['user_domain_name'], 
         )
-        new_session = session.Session(auth=auth, verify=False)
-        return new_session
+        try:
+            new_session = session.Session(auth=auth, verify=False)
+            return new_session
+        except keystoneauth1.exceptions.auth.MissingAuthMethods, keystoneauth1.exceptions.auth.AuthorizationFailure as error:
+            logging.error('Error while creating keystone session: {}'.format(error))
 
 
     def calculate_md5_hash(self, filename):
@@ -78,7 +81,10 @@ class Image_Delivery:
 
 
     def update_image_to_old(self, image, glance):
-        glance.images.update(image.id, name='{}_old'.format(image.name))
+        try:
+            glance.images.update(image.id, name='{}_old'.format(image.name))
+        except glance.common.exception.ImageNotFound as error:
+            logging.error('Image was not found: {}'.format(error))
 
 
     def check_image_type(self, image_to_check, image_checksum_to_check, glance_images):
@@ -103,24 +109,30 @@ if __name__ == '__main__':
 password=alf['password'], auth_url=alf['auth_url'], project_name=alf['project_name'],\
 project_domain_name=alf['project_domain_name'], user_domain_name=alf['user_domain_name'])
                 
-                glance = Client('2', session=current_session)
+                glance = None
+                if current_session:
+                    try:
+                        glance = Client('2', session=current_session)
+                        glance_images = list(glance.images.list())
+                    except glance.common.exception.AuthBadRequest, glance.common.exception.ClientConnectionError as error:
+                        logging.error('Error while connecting to glance {}'.format(error))
+                    
+                if glance:
 
-                glance_images = list(glance.images.list())
+                    for image in image_delivery.ethalon_image_list:
+                        image_name = unicode(image.split('.')[0], 'utf-8')
+                        image_checksum = unicode(image_delivery.calculate_md5_hash(image), 'utf-8')
 
-                for image in image_delivery.ethalon_image_list:
-                    image_name = unicode(image.split('.')[0], 'utf-8')
-                    image_checksum = unicode(image_delivery.calculate_md5_hash(image), 'utf-8')
+                        type_of_image, existing_image_to_change = image_delivery.check_image_type(image_name, image_checksum, glance_images)
 
-                    type_of_image, existing_image_to_change = image_delivery.check_image_type(image_name, image_checksum, glance_images)
-
-                    logging.info('RESULT::: ', type_of_image, '  ', existing_image_to_change)
-                    if type_of_image == 'duplicate':
-                        logging.info('duplicate')
-                        continue
-                    elif type_of_image == 'new_version':
-                        logging.info('new_version')
-                        image_delivery.update_image_to_old(existing_image_to_change, glance)
-                        image_delivery.upload_new_image(image, image_name, glance)
-                    elif type_of_image == 'new_image':
-                        logging.info('upload_new_image')
-                        image_delivery.upload_new_image(image, image_name, glance)
+                        logging.info('RESULT::: ', type_of_image, '  ', existing_image_to_change)
+                        if type_of_image == 'duplicate':
+                            logging.info('duplicate')
+                            continue
+                        elif type_of_image == 'new_version':
+                            logging.info('new_version')
+                            image_delivery.update_image_to_old(existing_image_to_change, glance)
+                            image_delivery.upload_new_image(image, image_name, glance)
+                        elif type_of_image == 'new_image':
+                            logging.info('upload_new_image')
+                            image_delivery.upload_new_image(image, image_name, glance)
