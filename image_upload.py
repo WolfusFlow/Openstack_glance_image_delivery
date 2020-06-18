@@ -4,6 +4,8 @@ import json
 import logging
 import hashlib
 
+from datetime import datetime as dt
+
 from keystoneauth1 import loading
 from keystoneauth1 import session
 from glanceclient import Client
@@ -82,7 +84,8 @@ class Image_Delivery:
 
     def update_image_to_old(self, image, glance):
         try:
-            glance.images.update(image.id, name='{}_old'.format(image.name))
+            updated_date = dt.now().strftime('%Y-%m-%d_%H:%M:%S')
+            glance.images.update(image.id, name='{}_old_after_{}'.format(image.name, updated_date))
         except glance.common.exception.ImageNotFound as error:
             logging.error('Image was not found: {}'.format(error))
 
