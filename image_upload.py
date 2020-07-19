@@ -41,13 +41,17 @@ class Image_Delivery:
 
     def __init__(self):
 
-        self.ethalon_image_list = self.get_images_from_folder()
+        self.ethalon_raw_list, self.ethalon_qcow2_list = self.get_images_from_folder()
 
+        
     def get_images_from_folder(self):
-        image_list = []
-        [image_list.append(item) for item in os.listdir('.') if re.search(r'.*(.raw)', item)]
-        return image_list
+        raw_image_list = []
+        qcow2_image_list = []
+        [raw_image_list.append(item) for item in os.listdir('.') if re.search(r'.*(.raw)', item)]
+        [qcow2_image_list.append(item) for item in os.listdir('.') if re.search(r'.*(.qcow2)', item)]
+        return raw_image_list, qcow2_image_list
 
+    
     def connect_to_region(self, *args, **kwargs):
         
         loader = loading.get_plugin_loader('password')
@@ -75,11 +79,12 @@ class Image_Delivery:
        
         return hash_md5.hexdigest() 
 
-    def upload_new_image(self, new_image, new_image_name, glance):
-        image = glance.images.create(name=new_image_name, disk_format='raw', container_format='bare')
+    
+    def upload_new_image(self, new_image, new_image_name, glance, image_format, cinder_img_volume_type):
+        image = glance.images.create(name=new_image_name, disk_format=unicode(image_format), container_format='bare', cinder_img_volume_type=unicode(cinder_img_volume_type))
         glance.images.upload(image.id, open(new_image, 'rb'))
-       # image = glance.images.create(name="newImage")
-       # glance.image.upload(image.id, open('/path/to/image.raw', 'rb'))
+        if 'win' in new_image_name.lower():
+            glance.images.update(image.id, os_distro=unicode('windows'), os_type=unicode('windows'))
 
 
     def update_image_to_old(self, image, glance):
@@ -108,6 +113,17 @@ if __name__ == '__main__':
         regions_data = json.load(regions_file)
         for region_key, region_value in regions_data.items():
             for alf in regions_data[region_key]:
+                
+                current_ethalon_images_list = None
+
+                if alf['format'].lower() == 'raw':
+                    current_ethalon_images_list = image_delivery.ethalon_raw_list
+                elif alf['format'].lower() == 'qcow2':
+                    current_ethalon_images_list = image_delivery.ethalon_qcow2_list
+                else:
+                    # raise Exception 'UNKNOWN FORMAT'
+                    pass
+                
                 current_session = image_delivery.connect_to_region(region=alf['region'], username=alf['username'],\
 password=alf['password'], auth_url=alf['auth_url'], project_name=alf['project_name'],\
 project_domain_name=alf['project_domain_name'], user_domain_name=alf['user_domain_name'])
